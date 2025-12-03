@@ -51,6 +51,47 @@ Beginne direkt mit der Geschichte, ohne Einleitung oder Meta-Kommentare. Die Ges
   return response.choices[0]?.message?.content || '';
 }
 
+// Teilt Text in Chunks von max. 4096 Zeichen (an Satzgrenzen)
+function splitTextIntoChunks(text: string, maxLength: number = 4000): string[] {
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      chunks.push(remaining);
+      break;
+    }
+
+    // Finde beste Trennstelle (Satzende) innerhalb des Limits
+    let splitIndex = maxLength;
+
+    // Suche nach Satzende (. ! ?) rückwärts vom Limit
+    const searchArea = remaining.substring(0, maxLength);
+    const lastPeriod = Math.max(
+      searchArea.lastIndexOf('. '),
+      searchArea.lastIndexOf('.\n'),
+      searchArea.lastIndexOf('! '),
+      searchArea.lastIndexOf('? ')
+    );
+
+    if (lastPeriod > maxLength * 0.5) {
+      // Gute Trennstelle gefunden
+      splitIndex = lastPeriod + 1;
+    } else {
+      // Fallback: Trenne am letzten Leerzeichen
+      const lastSpace = searchArea.lastIndexOf(' ');
+      if (lastSpace > maxLength * 0.5) {
+        splitIndex = lastSpace;
+      }
+    }
+
+    chunks.push(remaining.substring(0, splitIndex).trim());
+    remaining = remaining.substring(splitIndex).trim();
+  }
+
+  return chunks;
+}
+
 export async function generateAudio(
   text: string,
   storyId: string
@@ -63,17 +104,32 @@ export async function generateAudio(
 
   const audioPath = path.join(audioDir, `${storyId}.mp3`);
 
-  // OpenAI TTS API - nutze "nova" für eine sanfte, beruhigende Stimme
-  const response = await openai.audio.speech.create({
-    model: 'tts-1-hd',
-    voice: 'nova', // Sanfte, beruhigende Stimme
-    input: text,
-    speed: 0.9, // Etwas langsamer für Einschlafgeschichten
-  });
+  // Teile Text in Chunks für TTS API (max 4096 Zeichen)
+  const chunks = splitTextIntoChunks(text, 4000);
+  console.log(`Generating audio for ${chunks.length} text chunks...`);
 
-  // Speichere die Audio-Datei
-  const buffer = Buffer.from(await response.arrayBuffer());
-  fs.writeFileSync(audioPath, buffer);
+  const audioBuffers: Buffer[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`);
+
+    // OpenAI TTS API - nutze "nova" für eine sanfte, beruhigende Stimme
+    const response = await openai.audio.speech.create({
+      model: 'tts-1-hd',
+      voice: 'nova', // Sanfte, beruhigende Stimme
+      input: chunks[i],
+      speed: 0.9, // Etwas langsamer für Einschlafgeschichten
+    });
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    audioBuffers.push(buffer);
+  }
+
+  // Kombiniere alle Audio-Chunks
+  const combinedBuffer = Buffer.concat(audioBuffers);
+  fs.writeFileSync(audioPath, combinedBuffer);
+
+  console.log(`Audio saved: ${audioPath} (${(combinedBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
   return `${storyId}.mp3`;
 }
