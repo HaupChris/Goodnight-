@@ -7,6 +7,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Debug: Prüfe ob API Keys geladen sind
+console.log('ELEVENLABS_API_KEY loaded:', process.env.ELEVENLABS_API_KEY ? `${process.env.ELEVENLABS_API_KEY.substring(0, 8)}...` : 'NOT SET');
+
 const elevenlabs = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
 });
@@ -170,8 +173,23 @@ export async function generateAudio(
     console.log(`Audio saved: ${audioPath} (${(audioBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
     return `${storyId}.mp3`;
-  } catch (error) {
-    console.error('ElevenLabs error:', error);
+  } catch (error: unknown) {
+    console.error('ElevenLabs error:');
+    console.error('  Type:', error?.constructor?.name);
+
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      console.error('  Status:', err.statusCode || err.status);
+      console.error('  Message:', err.message);
+      console.error('  Body:', JSON.stringify(err.body, null, 2));
+
+      // Falls es einen response body gibt
+      if (err.rawResponse) {
+        console.error('  Raw Response:', err.rawResponse);
+      }
+    }
+
+    console.error('  Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2));
     throw new Error('Audio-Generierung fehlgeschlagen');
   }
 }
