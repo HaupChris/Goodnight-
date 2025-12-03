@@ -1,0 +1,16 @@
+# Render Blueprint
+services:
+  - type: web
+    name: goodnight-stories
+    env: docker
+    plan: free
+    healthCheckPath: /api/stories
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: goodnight-data
+      mountPath: /app/server/data
+      sizeGB: 1
