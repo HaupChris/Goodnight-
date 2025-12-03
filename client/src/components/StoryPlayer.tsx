@@ -1,19 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
-import { Story } from '../types'
-import { ArrowLeft, Play, Pause, RotateCcw, Moon, Volume2, VolumeX, ChevronDown, ChevronUp } from 'lucide-react'
+import { Story, AmbientSound } from '../types'
+import {
+  ArrowLeft, Play, Pause, RotateCcw, Moon, Volume2, VolumeX,
+  ChevronDown, ChevronUp, CloudRain, Waves, TreePine, Flame, Sparkles, X
+} from 'lucide-react'
 
 interface StoryPlayerProps {
   story: Story
   onBack: () => void
 }
 
+// Icons für Ambient Sounds
+const AMBIENT_ICONS: Record<string, React.ElementType> = {
+  rain: CloudRain,
+  ocean: Waves,
+  forest: TreePine,
+  fire: Flame,
+  space: Sparkles,
+}
+
 export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const ambientRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [showText, setShowText] = useState(false)
+
+  // Ambient Sound State
+  const [ambientSounds, setAmbientSounds] = useState<AmbientSound[]>([])
+  const [selectedAmbient, setSelectedAmbient] = useState<string | null>(null)
+  const [ambientVolume, setAmbientVolume] = useState(0.3)
+  const [showAmbientPicker, setShowAmbientPicker] = useState(false)
+
+  // Lade Ambient Sounds
+  useEffect(() => {
+    fetch('/api/ambient-sounds')
+      .then(res => res.json())
+      .then(data => setAmbientSounds(data))
+      .catch(console.error)
+  }, [])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -21,7 +48,13 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handleLoadedMetadata = () => setDuration(audio.duration)
-    const handleEnded = () => setIsPlaying(false)
+    const handleEnded = () => {
+      setIsPlaying(false)
+      // Stoppe auch Ambient Sound wenn Geschichte endet
+      if (ambientRef.current) {
+        ambientRef.current.pause()
+      }
+    }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
@@ -33,6 +66,25 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
       audio.removeEventListener('ended', handleEnded)
     }
   }, [])
+
+  // Sync Ambient Sound mit Hauptaudio
+  useEffect(() => {
+    const ambient = ambientRef.current
+    if (!ambient) return
+
+    if (isPlaying && selectedAmbient) {
+      ambient.play().catch(() => {})
+    } else {
+      ambient.pause()
+    }
+  }, [isPlaying, selectedAmbient])
+
+  // Update Ambient Volume
+  useEffect(() => {
+    if (ambientRef.current) {
+      ambientRef.current.volume = ambientVolume
+    }
+  }, [ambientVolume])
 
   const togglePlay = () => {
     const audio = audioRef.current
@@ -48,9 +100,13 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
 
   const toggleMute = () => {
     const audio = audioRef.current
+    const ambient = ambientRef.current
     if (!audio) return
-    audio.muted = !isMuted
-    setIsMuted(!isMuted)
+
+    const newMuted = !isMuted
+    audio.muted = newMuted
+    if (ambient) ambient.muted = newMuted
+    setIsMuted(newMuted)
   }
 
   const restart = () => {
@@ -74,7 +130,13 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const selectAmbientSound = (soundId: string | null) => {
+    setSelectedAmbient(soundId)
+    setShowAmbientPicker(false)
+  }
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+  const selectedSound = ambientSounds.find(s => s.id === selectedAmbient)
 
   return (
     <div className="py-6 space-y-6">
@@ -101,8 +163,16 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
         </div>
       </div>
 
-      {/* Audio Element (hidden) */}
+      {/* Audio Elements */}
       <audio ref={audioRef} src={`/audio/${story.audio_path}`} preload="metadata" />
+      {selectedAmbient && (
+        <audio
+          ref={ambientRef}
+          src={`/sounds/${selectedSound?.file}`}
+          loop
+          preload="metadata"
+        />
+      )}
 
       {/* Progress Bar */}
       <div className="space-y-2">
@@ -159,6 +229,91 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
             <Volume2 className="w-6 h-6" />
           )}
         </button>
+      </div>
+
+      {/* Ambient Sounds Section */}
+      <div className="glass rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setShowAmbientPicker(!showAmbientPicker)}
+          className="w-full p-4 flex items-center justify-between text-night-300 hover:text-white transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            {selectedAmbient && selectedSound ? (
+              <>
+                {(() => {
+                  const Icon = AMBIENT_ICONS[selectedAmbient] || Waves
+                  return <Icon className="w-5 h-5 text-dream-400" />
+                })()}
+                <span className="text-sm font-medium">{selectedSound.name}</span>
+              </>
+            ) : (
+              <>
+                <Waves className="w-5 h-5" />
+                <span className="text-sm font-medium">Hintergrundgeräusch</span>
+              </>
+            )}
+          </div>
+          {showAmbientPicker ? (
+            <ChevronUp className="w-5 h-5" />
+          ) : (
+            <ChevronDown className="w-5 h-5" />
+          )}
+        </button>
+
+        {showAmbientPicker && (
+          <div className="px-4 pb-4 space-y-3">
+            {/* Keine Auswahl */}
+            <button
+              onClick={() => selectAmbientSound(null)}
+              className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-all ${
+                selectedAmbient === null
+                  ? 'bg-night-600 text-white'
+                  : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+              }`}
+            >
+              <X className="w-5 h-5" />
+              <span className="text-sm">Kein Hintergrundgeräusch</span>
+            </button>
+
+            {/* Sound Optionen */}
+            {ambientSounds.map((sound) => {
+              const Icon = AMBIENT_ICONS[sound.id] || Waves
+              return (
+                <button
+                  key={sound.id}
+                  onClick={() => selectAmbientSound(sound.id)}
+                  className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-all ${
+                    selectedAmbient === sound.id
+                      ? 'bg-night-600 text-white'
+                      : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <div className="flex-1">
+                    <span className="block text-sm font-medium">{sound.name}</span>
+                    <span className="block text-xs opacity-70">{sound.description}</span>
+                  </div>
+                </button>
+              )
+            })}
+
+            {/* Lautstärke Slider */}
+            {selectedAmbient && (
+              <div className="pt-2 space-y-2">
+                <label className="text-xs text-night-500">Lautstärke Hintergrund</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={ambientVolume}
+                  onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-night-700 rounded-full appearance-none cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Text Toggle */}

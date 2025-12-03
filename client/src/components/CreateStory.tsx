@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Sparkles, Clock, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Sparkles, Clock, Loader2, Mic, User } from 'lucide-react'
+import { Voice } from '../types'
 
 interface CreateStoryProps {
   onStoryCreated: () => void
@@ -12,21 +13,35 @@ const DURATION_OPTIONS = [
   { value: 20, label: '20 Min', description: 'Sehr lang' },
 ]
 
+// Wissenschaftlich fundierte Themenvorschläge
 const THEME_SUGGESTIONS = [
-  'Eine Reise zum Mond',
-  'Die Sterne über dem Ozean',
-  'Ein Spaziergang durch den Nebel',
-  'Die Geheimnisse der Milchstraße',
-  'Ein ruhiger Abend im Wald',
-  'Die Farben des Nordlichts',
+  'Schwarze Löcher und die Krümmung der Raumzeit',
+  'Wie Sterne geboren werden und sterben',
+  'Die Geheimnisse der Tiefsee',
+  'Quantenverschränkung erklärt',
+  'Die Reise des Lichts durch das Universum',
+  'Wie Planeten entstehen',
+  'Die Physik der Nordlichter',
+  'Das Leben in extremen Umgebungen',
+  'Gravitationswellen und ihre Entdeckung',
+  'Die kosmische Hintergrundstrahlung',
 ]
 
 export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(10)
+  const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
+  const [voices, setVoices] = useState<Voice[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/voices')
+      .then(res => res.json())
+      .then(data => setVoices(data))
+      .catch(console.error)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,6 +62,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
           title: title.trim(),
           description: description.trim(),
           duration_minutes: duration,
+          voice_id: voiceId,
         }),
       })
 
@@ -75,7 +91,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
         <Sparkles className="w-10 h-10 text-dream-300 mx-auto" />
         <h1 className="text-2xl font-bold text-white">Neue Geschichte</h1>
         <p className="text-night-400 text-sm">
-          Beschreibe deine Wunschgeschichte und wähle die Länge
+          Wähle ein wissenschaftliches Thema für deine Einschlafgeschichte
         </p>
       </div>
 
@@ -90,7 +106,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="z.B. Reise zu den Sternen"
+            placeholder="z.B. Die Geheimnisse der Schwarzen Löcher"
             className="w-full px-4 py-3 rounded-xl bg-night-900/50 border border-night-700 text-white placeholder-night-500 focus:outline-none focus:ring-2 focus:ring-night-500 focus:border-transparent transition-all"
             disabled={isSubmitting}
           />
@@ -99,13 +115,13 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
         {/* Description */}
         <div className="space-y-2">
           <label htmlFor="description" className="block text-sm font-medium text-night-300">
-            Beschreibung / Thema
+            Thema / Was möchtest du lernen?
           </label>
           <textarea
             id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Beschreibe, worum die Geschichte handeln soll..."
+            placeholder="Beschreibe das wissenschaftliche Thema, über das du mehr erfahren möchtest..."
             rows={3}
             className="w-full px-4 py-3 rounded-xl bg-night-900/50 border border-night-700 text-white placeholder-night-500 focus:outline-none focus:ring-2 focus:ring-night-500 focus:border-transparent transition-all resize-none"
             disabled={isSubmitting}
@@ -114,7 +130,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
 
         {/* Theme Suggestions */}
         <div className="space-y-2">
-          <span className="block text-sm font-medium text-night-400">Ideen</span>
+          <span className="block text-sm font-medium text-night-400">Themenideen</span>
           <div className="flex flex-wrap gap-2">
             {THEME_SUGGESTIONS.map((theme) => (
               <button
@@ -125,6 +141,41 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
                 disabled={isSubmitting}
               >
                 {theme}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Voice Selection */}
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-night-300">
+            <Mic className="w-4 h-4" />
+            Erzählstimme
+          </label>
+          <div className="grid grid-cols-1 gap-2">
+            {voices.map((voice) => (
+              <button
+                key={voice.id}
+                type="button"
+                onClick={() => setVoiceId(voice.id)}
+                className={`p-3 rounded-xl text-left transition-all flex items-center gap-3 ${
+                  voiceId === voice.id
+                    ? 'bg-night-600 text-white ring-2 ring-night-400'
+                    : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+                }`}
+                disabled={isSubmitting}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  voice.gender === 'female' ? 'bg-dream-500/20' : 'bg-night-500/20'
+                }`}>
+                  <User className={`w-5 h-5 ${
+                    voice.gender === 'female' ? 'text-dream-400' : 'text-night-300'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block font-semibold">{voice.name}</span>
+                  <span className="block text-xs opacity-70 truncate">{voice.description}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -185,7 +236,8 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
 
       {/* Info */}
       <p className="text-center text-xs text-night-500">
-        Die KI generiert Text und Audio. Das kann 1-2 Minuten dauern.
+        Die KI erstellt eine wissenschaftlich fundierte Geschichte mit hochwertiger Sprachausgabe.
+        Das kann 1-2 Minuten dauern.
       </p>
     </div>
   )

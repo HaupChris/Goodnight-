@@ -17,6 +17,7 @@ db.exec(`
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     duration_minutes INTEGER NOT NULL,
+    voice_id TEXT DEFAULT 'EXAVITQu4vr4xnSDxMaL',
     content TEXT,
     audio_path TEXT,
     status TEXT DEFAULT 'pending',
@@ -25,11 +26,19 @@ db.exec(`
   )
 `);
 
+// Migration: Füge voice_id Spalte hinzu falls nicht vorhanden
+try {
+  db.exec(`ALTER TABLE stories ADD COLUMN voice_id TEXT DEFAULT 'EXAVITQu4vr4xnSDxMaL'`);
+} catch (e) {
+  // Spalte existiert bereits
+}
+
 export interface Story {
   id: string;
   title: string;
   description: string;
   duration_minutes: number;
+  voice_id: string;
   content: string | null;
   audio_path: string | null;
   status: 'pending' | 'generating_text' | 'generating_audio' | 'completed' | 'error';
@@ -40,10 +49,10 @@ export interface Story {
 export const storyDB = {
   create: (story: Omit<Story, 'created_at' | 'updated_at' | 'content' | 'audio_path' | 'status'>) => {
     const stmt = db.prepare(`
-      INSERT INTO stories (id, title, description, duration_minutes, status)
-      VALUES (?, ?, ?, ?, 'pending')
+      INSERT INTO stories (id, title, description, duration_minutes, voice_id, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
     `);
-    stmt.run(story.id, story.title, story.description, story.duration_minutes);
+    stmt.run(story.id, story.title, story.description, story.duration_minutes, story.voice_id);
     return storyDB.getById(story.id);
   },
 

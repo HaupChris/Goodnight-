@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { ElevenLabsClient } from 'elevenlabs';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,27 +7,101 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Stil-Prompt basierend auf "Einschlafen mit Weltall"
-const STORY_STYLE_PROMPT = `Du bist ein sanfter Geschichtenerzähler für Einschlafgeschichten im Stil des Podcasts "Einschlafen mit Weltall".
+const elevenlabs = new ElevenLabsClient({
+  apiKey: process.env.ELEVENLABS_API_KEY,
+});
 
-Dein Stil:
-- Ruhig, beruhigend und entspannend
-- Faszinierende Fakten über das Weltall, Natur oder Wissenschaft
-- Langsame, meditative Erzählweise
-- Keine aufregenden oder spannenden Wendungen
-- Sanfte Übergänge zwischen Themen
-- Beruhigende Beschreibungen von Sternen, Planeten, Galaxien oder Naturphänomenen
-- Philosophische, aber leicht verständliche Betrachtungen
-- Der Zuhörer soll sanft in den Schlaf gleiten können
+// Verfügbare ElevenLabs Stimmen für Einschlafgeschichten
+export const AVAILABLE_VOICES = [
+  {
+    id: 'EXAVITQu4vr4xnSDxMaL', // Sarah - sanft, warm
+    name: 'Sarah',
+    description: 'Sanft und warm, perfekt für beruhigende Geschichten',
+    gender: 'female',
+    preview_url: 'https://storage.googleapis.com/eleven-public-prod/voices/EXAVITQu4vr4xnSDxMaL/manifest.json'
+  },
+  {
+    id: 'onwK4e9ZLuTAKqWW03F9', // Daniel - ruhig, tief
+    name: 'Daniel',
+    description: 'Ruhige, tiefe Stimme wie ein Hörbuch-Erzähler',
+    gender: 'male',
+    preview_url: null
+  },
+  {
+    id: 'XB0fDUnXU5powFXDhCwa', // Charlotte - sanft, klar
+    name: 'Charlotte',
+    description: 'Sanft und klar, ideal für wissenschaftliche Themen',
+    gender: 'female',
+    preview_url: null
+  },
+  {
+    id: 'pFZP5JQG7iQjIQuC4Bku', // Lily - ruhig, melodisch
+    name: 'Lily',
+    description: 'Ruhig und melodisch, wie ein Gutenacht-Lied',
+    gender: 'female',
+    preview_url: null
+  },
+  {
+    id: 'TX3LPaxmHKxFdv7VOQHJ', // Liam - warm, beruhigend
+    name: 'Liam',
+    description: 'Warm und beruhigend, entspannter Erzählstil',
+    gender: 'male',
+    preview_url: null
+  }
+];
 
-Die Geschichte soll wie eine sanfte Reise durchs Universum oder durch die Wunder der Natur sein, die den Geist beruhigt und Raum für friedliche Gedanken schafft.`;
+// Verbesserter Prompt für wissenschaftlich fundierte, aber beruhigende Geschichten
+const STORY_STYLE_PROMPT = `Du bist ein erfahrener Wissenschafts-Geschichtenerzähler, der komplexe Themen auf faszinierende und zugleich beruhigende Weise vermittelt – im Stil des Podcasts "Einschlafen mit Weltall".
+
+## Deine Kernprinzipien:
+
+### 1. Wissenschaftliche Tiefe mit Zugänglichkeit
+- Erkläre echte wissenschaftliche Konzepte, Phänomene und Entdeckungen
+- Verwende konkrete Zahlen, Fakten und Forschungsergebnisse
+- Nenne Wissenschaftler, Missionen oder Studien, wenn passend
+- Erkläre das "Warum" hinter den Phänomenen, nicht nur das "Was"
+- Vermeide Oberflächlichkeit – gehe in die Details, aber erkläre sie verständlich
+
+### 2. Erzählerischer Fluss
+- Baue die Geschichte wie eine gedankliche Reise auf
+- Führe von einem Konzept sanft zum nächsten
+- Nutze Übergänge wie "Und wenn wir noch weiter hinausschauen..." oder "Was noch faszinierender ist..."
+- Jeder Absatz sollte neues Wissen vermitteln
+
+### 3. Beruhigender Stil trotz faszinierender Inhalte
+- Langsame, meditative Satzrhythmen
+- Verwende Wörter wie: sanft, still, unendlich, friedlich, geheimnisvoll
+- Keine dramatischen Wendungen oder beunruhigenden Szenarien
+- Die Faszination kommt aus dem Staunen, nicht aus Spannung
+
+### 4. Konkrete Beispiele statt Abstraktionen
+- Statt "Das Universum ist groß": "Das Licht unserer Nachbargalaxie Andromeda, das heute Nacht deine Augen erreicht, begann seine Reise vor 2,5 Millionen Jahren"
+- Statt "Sterne sind heiß": "Im Kern unserer Sonne verschmelzen jede Sekunde 600 Millionen Tonnen Wasserstoff zu Helium"
+
+### 5. Thematische Vielfalt
+Je nach gewähltem Thema kannst du über folgendes sprechen:
+- Astrophysik: Schwarze Löcher, Neutronensterne, Dunkle Materie, Gravitationswellen
+- Kosmologie: Urknall, kosmische Hintergrundstrahlung, Expansion des Universums
+- Planetenwissenschaft: Monde, Exoplaneten, Atmosphären, Geologie anderer Welten
+- Biologie: Evolution, Zellprozesse, Ökosysteme, Tiefseeleben
+- Physik: Quantenmechanik, Relativität, Thermodynamik
+- Geowissenschaften: Plattentektonik, Ozeane, Atmosphäre, Klimasysteme
+- Geschichte der Wissenschaft: Entdeckungen, Teleskope, Raumfahrtmissionen
+
+## Stilistische Regeln:
+- Schreibe in der zweiten Person ("du") für Intimität
+- Beginne direkt mit dem Thema, keine Meta-Einleitung
+- Ende mit einem beruhigenden Ausklang, der zum Einschlafen einlädt
+- Vermeide Ausrufezeichen
+- Nutze lange, fließende Sätze mit Nebensätzen
+- Integriere sanfte Aufforderungen zur Entspannung zwischen den Wissensblöcken`;
 
 export async function generateStoryText(
   description: string,
   durationMinutes: number
 ): Promise<string> {
-  // Ungefähr 150 Wörter pro Minute beim langsamen Vorlesen
-  const targetWordCount = durationMinutes * 120;
+  // Ungefähr 130 Wörter pro Minute beim langsamen Vorlesen
+  const targetWordCount = durationMinutes * 130;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -37,64 +112,29 @@ export async function generateStoryText(
       },
       {
         role: 'user',
-        content: `Schreibe eine Einschlafgeschichte basierend auf diesem Thema: "${description}"
+        content: `Schreibe eine wissenschaftlich fundierte Einschlafgeschichte zum Thema: "${description}"
 
-Die Geschichte soll etwa ${targetWordCount} Wörter lang sein (für ca. ${durationMinutes} Minuten Vorlesezeit bei ruhigem Tempo).
+Anforderungen:
+- Länge: etwa ${targetWordCount} Wörter (für ca. ${durationMinutes} Minuten)
+- Vermittle echtes, interessantes Wissen – keine oberflächlichen Platitüden
+- Erkläre mindestens 3-4 konkrete wissenschaftliche Konzepte oder Fakten
+- Halte dabei den beruhigenden, meditativen Erzählfluss
+- Ende sanft, sodass der Zuhörer friedlich einschlafen kann
 
-Beginne direkt mit der Geschichte, ohne Einleitung oder Meta-Kommentare. Die Geschichte soll sanft ausklingen, sodass der Zuhörer friedlich einschlafen kann.`
+Beginne direkt mit der Geschichte.`
       }
     ],
-    max_tokens: Math.min(targetWordCount * 2, 4096),
-    temperature: 0.7,
+    max_tokens: 4096,
+    temperature: 0.75,
   });
 
   return response.choices[0]?.message?.content || '';
 }
 
-// Teilt Text in Chunks von max. 4096 Zeichen (an Satzgrenzen)
-function splitTextIntoChunks(text: string, maxLength: number = 4000): string[] {
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLength) {
-      chunks.push(remaining);
-      break;
-    }
-
-    // Finde beste Trennstelle (Satzende) innerhalb des Limits
-    let splitIndex = maxLength;
-
-    // Suche nach Satzende (. ! ?) rückwärts vom Limit
-    const searchArea = remaining.substring(0, maxLength);
-    const lastPeriod = Math.max(
-      searchArea.lastIndexOf('. '),
-      searchArea.lastIndexOf('.\n'),
-      searchArea.lastIndexOf('! '),
-      searchArea.lastIndexOf('? ')
-    );
-
-    if (lastPeriod > maxLength * 0.5) {
-      // Gute Trennstelle gefunden
-      splitIndex = lastPeriod + 1;
-    } else {
-      // Fallback: Trenne am letzten Leerzeichen
-      const lastSpace = searchArea.lastIndexOf(' ');
-      if (lastSpace > maxLength * 0.5) {
-        splitIndex = lastSpace;
-      }
-    }
-
-    chunks.push(remaining.substring(0, splitIndex).trim());
-    remaining = remaining.substring(splitIndex).trim();
-  }
-
-  return chunks;
-}
-
 export async function generateAudio(
   text: string,
-  storyId: string
+  storyId: string,
+  voiceId: string = 'EXAVITQu4vr4xnSDxMaL' // Default: Sarah
 ): Promise<string> {
   // Stelle sicher, dass der Audio-Ordner existiert
   const audioDir = path.join(__dirname, '..', 'data', 'audio');
@@ -104,40 +144,43 @@ export async function generateAudio(
 
   const audioPath = path.join(audioDir, `${storyId}.mp3`);
 
-  // Teile Text in Chunks für TTS API (max 4096 Zeichen)
-  const chunks = splitTextIntoChunks(text, 4000);
-  console.log(`Generating audio for ${chunks.length} text chunks...`);
+  console.log(`Generating audio with ElevenLabs (voice: ${voiceId})...`);
 
-  const audioBuffers: Buffer[] = [];
-
-  for (let i = 0; i < chunks.length; i++) {
-    console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`);
-
-    // OpenAI TTS API - nutze "nova" für eine sanfte, beruhigende Stimme
-    const response = await openai.audio.speech.create({
-      model: 'tts-1-hd',
-      voice: 'nova', // Sanfte, beruhigende Stimme
-      input: chunks[i],
-      speed: 0.9, // Etwas langsamer für Einschlafgeschichten
+  try {
+    // ElevenLabs API - kein Chunking nötig, unterstützt lange Texte
+    const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
+      text: text,
+      model_id: 'eleven_multilingual_v2', // Beste Qualität für Deutsch
+      voice_settings: {
+        stability: 0.75,        // Höhere Stabilität für konsistente Erzählung
+        similarity_boost: 0.75, // Natürliche Stimme
+        style: 0.35,            // Leichter Stil für Lebendigkeit
+        use_speaker_boost: true
+      }
     });
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    audioBuffers.push(buffer);
+    // Stream zu Buffer konvertieren
+    const chunks: Buffer[] = [];
+    for await (const chunk of audioStream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const audioBuffer = Buffer.concat(chunks);
+
+    fs.writeFileSync(audioPath, audioBuffer);
+    console.log(`Audio saved: ${audioPath} (${(audioBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
+
+    return `${storyId}.mp3`;
+  } catch (error) {
+    console.error('ElevenLabs error:', error);
+    throw new Error('Audio-Generierung fehlgeschlagen');
   }
-
-  // Kombiniere alle Audio-Chunks
-  const combinedBuffer = Buffer.concat(audioBuffers);
-  fs.writeFileSync(audioPath, combinedBuffer);
-
-  console.log(`Audio saved: ${audioPath} (${(combinedBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
-
-  return `${storyId}.mp3`;
 }
 
 export async function generateStory(
   description: string,
   durationMinutes: number,
   storyId: string,
+  voiceId: string,
   onStatusUpdate: (status: string, content?: string) => void
 ): Promise<{ content: string; audioPath: string }> {
   // Generiere Text
@@ -145,9 +188,14 @@ export async function generateStory(
   const content = await generateStoryText(description, durationMinutes);
   onStatusUpdate('generating_audio', content);
 
-  // Generiere Audio
-  const audioPath = await generateAudio(content, storyId);
+  // Generiere Audio mit ElevenLabs
+  const audioPath = await generateAudio(content, storyId, voiceId);
   onStatusUpdate('completed');
 
   return { content, audioPath };
+}
+
+// Hilfsfunktion um verfügbare Stimmen zu bekommen
+export function getAvailableVoices() {
+  return AVAILABLE_VOICES;
 }
