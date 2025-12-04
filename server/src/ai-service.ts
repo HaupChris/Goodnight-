@@ -277,7 +277,14 @@ export async function testElevenLabsAPI(): Promise<APITestResult> {
       };
     }
 
-    const userData = await response.json();
+    const userData = await response.json() as {
+      user_id?: string;
+      subscription?: {
+        tier?: string;
+        character_count?: number;
+        character_limit?: number;
+      };
+    };
 
     return {
       service: 'ElevenLabs',
@@ -288,7 +295,7 @@ export async function testElevenLabsAPI(): Promise<APITestResult> {
         subscription_tier: userData.subscription?.tier,
         character_count: userData.subscription?.character_count,
         character_limit: userData.subscription?.character_limit,
-        api_key_prefix: process.env.ELEVENLABS_API_KEY.substring(0, 8) + '...'
+        api_key_prefix: process.env.ELEVENLABS_API_KEY!.substring(0, 8) + '...'
       },
       latency_ms: latency
     };
