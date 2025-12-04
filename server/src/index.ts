@@ -225,7 +225,7 @@ app.post('/api/stories', async (req, res) => {
     }
 
     const id = uuidv4();
-    const selectedVoiceId = voice_id || 'EXAVITQu4vr4xnSDxMaL'; // Default: Sarah
+    const selectedVoiceId = voice_id || 'onwK4e9ZLuTAKqWW03F9'; // Default: Daniel
     const selectedStyleId = style_id || 'scientific'; // Default: Wissenschaftlich
 
     // Erstelle den Datenbankeintrag

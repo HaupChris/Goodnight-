@@ -17,7 +17,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(10)
-  const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
+  const [voiceId, setVoiceId] = useState('onwK4e9ZLuTAKqWW03F9')
   const [styleId, setStyleId] = useState('scientific')
   const [voices, setVoices] = useState<Voice[]>([])
   const [styles, setStyles] = useState<NarrationStyle[]>([])

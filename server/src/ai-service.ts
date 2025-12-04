@@ -164,13 +164,6 @@ export const STORY_CATEGORIES = [
 // Verfügbare ElevenLabs Stimmen für Einschlafgeschichten
 export const AVAILABLE_VOICES = [
   {
-    id: 'EXAVITQu4vr4xnSDxMaL', // Sarah - sanft, warm
-    name: 'Sarah',
-    description: 'Sanft und warm, perfekt für beruhigende Geschichten',
-    gender: 'female',
-    preview_url: 'https://storage.googleapis.com/eleven-public-prod/voices/EXAVITQu4vr4xnSDxMaL/manifest.json'
-  },
-  {
     id: 'onwK4e9ZLuTAKqWW03F9', // Daniel - ruhig, tief
     name: 'Daniel',
     description: 'Ruhige, tiefe Stimme wie ein Hörbuch-Erzähler',
@@ -328,7 +321,7 @@ function splitTextIntoChunks(text: string, maxChunkLength: number = 2500): strin
 export async function generateAudio(
   text: string,
   storyId: string,
-  voiceId: string = 'EXAVITQu4vr4xnSDxMaL' // Default: Sarah
+  voiceId: string = 'onwK4e9ZLuTAKqWW03F9' // Default: Daniel
 ): Promise<string> {
   // Stelle sicher, dass der Audio-Ordner existiert
   const audioDir = path.join(__dirname, '..', 'data', 'audio');

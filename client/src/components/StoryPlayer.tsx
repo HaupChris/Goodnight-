@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import { Story, AmbientSound } from '../types'
 import {
   ArrowLeft, Play, Pause, RotateCcw, Moon, Volume2, VolumeX,
-  ChevronDown, ChevronUp, CloudRain, Waves, TreePine, Flame, Sparkles, X
+  ChevronDown, ChevronUp, CloudRain, Waves, TreePine, Flame, Sparkles, X, Gauge
 } from 'lucide-react'
+
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5]
 
 interface StoryPlayerProps {
   story: Story
@@ -27,6 +29,8 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [showText, setShowText] = useState(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [showSpeedPicker, setShowSpeedPicker] = useState(false)
 
   // Ambient Sound State
   const [ambientSounds, setAmbientSounds] = useState<AmbientSound[]>([])
@@ -85,6 +89,13 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
       ambientRef.current.volume = ambientVolume
     }
   }, [ambientVolume])
+
+  // Update Playback Speed
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed
+    }
+  }, [playbackSpeed])
 
   const togglePlay = () => {
     const audio = audioRef.current
@@ -229,6 +240,47 @@ export default function StoryPlayer({ story, onBack }: StoryPlayerProps) {
             <Volume2 className="w-6 h-6" />
           )}
         </button>
+      </div>
+
+      {/* Playback Speed */}
+      <div className="glass rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setShowSpeedPicker(!showSpeedPicker)}
+          className="w-full p-4 flex items-center justify-between text-night-300 hover:text-white transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Gauge className="w-5 h-5" />
+            <span className="text-sm font-medium">Geschwindigkeit: {playbackSpeed}x</span>
+          </div>
+          {showSpeedPicker ? (
+            <ChevronUp className="w-5 h-5" />
+          ) : (
+            <ChevronDown className="w-5 h-5" />
+          )}
+        </button>
+
+        {showSpeedPicker && (
+          <div className="px-4 pb-4">
+            <div className="flex gap-2">
+              {PLAYBACK_SPEEDS.map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => {
+                    setPlaybackSpeed(speed)
+                    setShowSpeedPicker(false)
+                  }}
+                  className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-all ${
+                    playbackSpeed === speed
+                      ? 'bg-night-600 text-white'
+                      : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ambient Sounds Section */}
