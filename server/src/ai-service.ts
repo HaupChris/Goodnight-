@@ -12,7 +12,6 @@ console.log('ELEVENLABS_API_KEY loaded:', process.env.ELEVENLABS_API_KEY ? `${pr
 
 const elevenlabs = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
-  timeoutInSeconds: 300, // 5 Minuten Timeout für lange Geschichten
 });
 
 // Erzählstile
@@ -282,6 +281,50 @@ Beginne direkt mit der Geschichte.`
   return response.choices[0]?.message?.content || '';
 }
 
+// Teile Text in Chunks auf (max ~2500 Zeichen pro Chunk für Stabilität)
+function splitTextIntoChunks(text: string, maxChunkLength: number = 2500): string[] {
+  const chunks: string[] = [];
+  const paragraphs = text.split(/\n\n+/);
+  let currentChunk = '';
+
+  for (const paragraph of paragraphs) {
+    // Wenn der Absatz allein zu lang ist, teile ihn an Satzgrenzen
+    if (paragraph.length > maxChunkLength) {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      const sentences = paragraph.split(/(?<=[.!?])\s+/);
+      for (const sentence of sentences) {
+        if ((currentChunk + ' ' + sentence).length > maxChunkLength) {
+          if (currentChunk) {
+            chunks.push(currentChunk.trim());
+          }
+          currentChunk = sentence;
+        } else {
+          currentChunk = currentChunk ? currentChunk + ' ' + sentence : sentence;
+        }
+      }
+    } else if ((currentChunk + '\n\n' + paragraph).length > maxChunkLength) {
+      // Chunk ist voll, starte neuen
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = paragraph;
+    } else {
+      // Füge Absatz zum aktuellen Chunk hinzu
+      currentChunk = currentChunk ? currentChunk + '\n\n' + paragraph : paragraph;
+    }
+  }
+
+  // Letzten Chunk hinzufügen
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+}
+
 export async function generateAudio(
   text: string,
   storyId: string,
@@ -296,26 +339,41 @@ export async function generateAudio(
   const audioPath = path.join(audioDir, `${storyId}.mp3`);
 
   console.log(`Generating audio with ElevenLabs (voice: ${voiceId})...`);
+  console.log(`Text length: ${text.length} characters`);
+
+  // Teile den Text in Chunks auf
+  const textChunks = splitTextIntoChunks(text);
+  console.log(`Split into ${textChunks.length} chunks`);
 
   try {
-    // ElevenLabs API - kein Chunking nötig, unterstützt lange Texte
-    const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
-      text: text,
-      model_id: 'eleven_multilingual_v2', // Beste Qualität für Deutsch
-      voice_settings: {
-        stability: 0.75,        // Höhere Stabilität für konsistente Erzählung
-        similarity_boost: 0.75, // Natürliche Stimme
-        style: 0.35,            // Leichter Stil für Lebendigkeit
-        use_speaker_boost: true
-      }
-    });
+    const audioBuffers: Buffer[] = [];
 
-    // Stream zu Buffer konvertieren
-    const chunks: Buffer[] = [];
-    for await (const chunk of audioStream) {
-      chunks.push(Buffer.from(chunk));
+    for (let i = 0; i < textChunks.length; i++) {
+      const chunk = textChunks[i];
+      console.log(`  Generating chunk ${i + 1}/${textChunks.length} (${chunk.length} chars)...`);
+
+      const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
+        text: chunk,
+        model_id: 'eleven_multilingual_v2', // Beste Qualität für Deutsch
+        voice_settings: {
+          stability: 0.75,        // Höhere Stabilität für konsistente Erzählung
+          similarity_boost: 0.75, // Natürliche Stimme
+          style: 0.35,            // Leichter Stil für Lebendigkeit
+          use_speaker_boost: true
+        }
+      });
+
+      // Stream zu Buffer konvertieren
+      const chunks: Buffer[] = [];
+      for await (const audioChunk of audioStream) {
+        chunks.push(Buffer.from(audioChunk));
+      }
+      audioBuffers.push(Buffer.concat(chunks));
+      console.log(`  Chunk ${i + 1} done (${(audioBuffers[i].length / 1024).toFixed(1)} KB)`);
     }
-    const audioBuffer = Buffer.concat(chunks);
+
+    // Alle Audio-Chunks zusammenfügen
+    const audioBuffer = Buffer.concat(audioBuffers);
 
     fs.writeFileSync(audioPath, audioBuffer);
     console.log(`Audio saved: ${audioPath} (${(audioBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
