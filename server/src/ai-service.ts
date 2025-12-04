@@ -14,6 +14,153 @@ const elevenlabs = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
 });
 
+// Erzählstile
+export const NARRATION_STYLES = [
+  {
+    id: 'scientific',
+    name: 'Wissenschaftlich',
+    description: 'Faktenreich und lehrreich, wie ein Podcast',
+    icon: '🔬',
+    promptAddition: `Fokussiere dich auf wissenschaftliche Fakten, Zahlen und Forschungsergebnisse.
+Erkläre die Mechanismen und das "Warum" hinter Phänomenen.
+Nenne konkrete Studien, Missionen oder Wissenschaftler wenn passend.`
+  },
+  {
+    id: 'dreamy',
+    name: 'Verträumt',
+    description: 'Poetisch und bildreich, wie ein Traum',
+    icon: '🌙',
+    promptAddition: `Nutze bildhafte, poetische Sprache voller Metaphern.
+Beschreibe Sinneseindrücke: Farben, Klänge, Gefühle.
+Lass die Grenzen zwischen Realität und Traum verschwimmen.
+Die Sprache sollte fließend und melodisch sein, wie sanfte Wellen.`
+  },
+  {
+    id: 'fairytale',
+    name: 'Märchenhaft',
+    description: 'Magisch und wunderbar, wie ein Märchen',
+    icon: '✨',
+    promptAddition: `Erzähle wie in einem klassischen Märchen mit sanfter Magie.
+Nutze Formulierungen wie "Es war einmal..." oder "In einer Welt, wo...".
+Verleihe wissenschaftlichen Konzepten einen Hauch von Zauber.
+Lass Sterne, Planeten und Naturphänomene wie lebendige Wesen erscheinen.`
+  },
+  {
+    id: 'meditative',
+    name: 'Meditativ',
+    description: 'Ruhig und achtsam, wie eine Meditation',
+    icon: '🧘',
+    promptAddition: `Sprich in einem langsamen, achtsamen Rhythmus.
+Füge Atemübungen und Entspannungsanleitungen zwischen die Inhalte ein.
+Nutze Formulierungen wie "Atme tief ein..." oder "Spüre, wie...".
+Der Fokus liegt auf Ruhe und dem gegenwärtigen Moment.`
+  },
+  {
+    id: 'adventure',
+    name: 'Abenteuerlich',
+    description: 'Sanfte Entdeckungsreise, wie eine Expedition',
+    icon: '🚀',
+    promptAddition: `Gestalte die Geschichte als ruhige Entdeckungsreise.
+Der Zuhörer ist ein Beobachter, der durch faszinierende Welten schwebt.
+Beschreibe die Reise durch Raum und Zeit, aber ohne Dramatik oder Gefahr.
+Jede Entdeckung ist ein friedliches Staunen.`
+  }
+];
+
+// Story-Kategorien mit Ideen-Generator
+export const STORY_CATEGORIES = [
+  {
+    id: 'universe',
+    name: 'Universum',
+    icon: '🌌',
+    ideas: [
+      { title: 'Die Geburt eines Sterns', description: 'Wie in kosmischen Gaswolken neue Sonnen entstehen' },
+      { title: 'Schwarze Löcher', description: 'Die geheimnisvollen Riesen, die selbst Licht verschlucken' },
+      { title: 'Die Milchstraße', description: 'Eine Reise durch unsere Heimatgalaxie mit ihren 200 Milliarden Sternen' },
+      { title: 'Exoplaneten', description: 'Ferne Welten um andere Sterne und die Suche nach Leben' },
+      { title: 'Neutronensterne', description: 'Die dichtesten Objekte im Universum, ein Teelöffel wiegt Milliarden Tonnen' },
+      { title: 'Das Ende der Sterne', description: 'Wie Sterne sterben - von weißen Zwergen bis Supernovae' },
+      { title: 'Dunkle Materie', description: 'Das unsichtbare Gerüst, das Galaxien zusammenhält' },
+      { title: 'Der Urknall', description: 'Die ersten Momente unseres Universums vor 13,8 Milliarden Jahren' },
+    ]
+  },
+  {
+    id: 'nature',
+    name: 'Natur',
+    icon: '🌿',
+    ideas: [
+      { title: 'Der Wald bei Nacht', description: 'Was geschieht im Wald, wenn die Menschen schlafen' },
+      { title: 'Die Sprache der Bäume', description: 'Wie Bäume über Wurzeln und Pilze kommunizieren' },
+      { title: 'Vogelzug', description: 'Die unglaubliche Reise der Zugvögel über Kontinente' },
+      { title: 'Biolumineszenz', description: 'Lebewesen, die in der Dunkelheit leuchten' },
+      { title: 'Der Wasserkreislauf', description: 'Die ewige Reise eines Wassertropfens' },
+      { title: 'Nordlichter', description: 'Wie die Sonne den Himmel in Farben taucht' },
+      { title: 'Jahreszeiten', description: 'Warum die Erde ihre Kleider wechselt' },
+      { title: 'Wolken', description: 'Die Kunst der Wolkenbildung und ihre Geheimnisse' },
+    ]
+  },
+  {
+    id: 'ocean',
+    name: 'Tiefsee',
+    icon: '🌊',
+    ideas: [
+      { title: 'Die Mitternachtszone', description: 'Leben in der ewigen Dunkelheit der Tiefsee' },
+      { title: 'Wale', description: 'Die sanften Riesen und ihre geheimnisvollen Gesänge' },
+      { title: 'Korallenriffe', description: 'Unterwasserstädte voller Leben und Farben' },
+      { title: 'Der Marianengraben', description: 'Eine Reise zum tiefsten Punkt der Erde' },
+      { title: 'Quallen', description: 'Die ältesten Lebewesen der Meere und ihr Tanz' },
+      { title: 'Meeresströmungen', description: 'Die unsichtbaren Flüsse im Ozean' },
+      { title: 'Tiefsee-Vulkane', description: 'Wo neues Land unter dem Meer entsteht' },
+      { title: 'Plankton', description: 'Die winzigen Helden, die unsere Luft erschaffen' },
+    ]
+  },
+  {
+    id: 'earth',
+    name: 'Erde',
+    icon: '🌍',
+    ideas: [
+      { title: 'Plattentektonik', description: 'Wie die Kontinente über den Planeten wandern' },
+      { title: 'Vulkane', description: 'Fenster in das glühende Herz der Erde' },
+      { title: 'Kristalle', description: 'Wie die Erde ihre Edelsteine erschafft' },
+      { title: 'Höhlen', description: 'Verborgene Welten unter unseren Füßen' },
+      { title: 'Die Atmosphäre', description: 'Die unsichtbare Hülle, die uns schützt' },
+      { title: 'Fossilien', description: 'Geschichten aus der Urzeit, in Stein bewahrt' },
+      { title: 'Gletscher', description: 'Die langsamen Riesen aus Eis und ihre Reise' },
+      { title: 'Der Erdkern', description: 'Eine Reise zum Zentrum unseres Planeten' },
+    ]
+  },
+  {
+    id: 'science',
+    name: 'Physik & Chemie',
+    icon: '⚛️',
+    ideas: [
+      { title: 'Quantenwelt', description: 'Wenn Teilchen an zwei Orten gleichzeitig sein können' },
+      { title: 'Licht', description: 'Die schnellste Reisende im Universum und ihre Geheimnisse' },
+      { title: 'Zeit', description: 'Was ist Zeit und warum vergeht sie?' },
+      { title: 'Atome', description: 'Die winzigen Bausteine, aus denen alles besteht' },
+      { title: 'Magnetismus', description: 'Die unsichtbare Kraft, die Kompassnadeln tanzen lässt' },
+      { title: 'Schallwellen', description: 'Wie Klänge durch die Luft reisen' },
+      { title: 'Relativität', description: 'Einsteins Entdeckung, dass Zeit dehnbar ist' },
+      { title: 'Chemische Reaktionen', description: 'Der Tanz der Atome, wenn Neues entsteht' },
+    ]
+  },
+  {
+    id: 'life',
+    name: 'Leben & Evolution',
+    icon: '🧬',
+    ideas: [
+      { title: 'Die erste Zelle', description: 'Wie vor Milliarden Jahren das Leben begann' },
+      { title: 'DNA', description: 'Der Code des Lebens in jeder deiner Zellen' },
+      { title: 'Dinosaurier', description: 'Die Herrscher, die 165 Millionen Jahre die Erde beherrschten' },
+      { title: 'Das menschliche Gehirn', description: '86 Milliarden Nervenzellen und ihre Gespräche' },
+      { title: 'Schlaf', description: 'Was in deinem Körper passiert, während du träumst' },
+      { title: 'Fotosynthese', description: 'Wie Pflanzen Sonnenlicht in Leben verwandeln' },
+      { title: 'Bakterien', description: 'Die unsichtbaren Helfer in und um uns' },
+      { title: 'Evolution', description: 'Die langsame Kunst der Veränderung über Jahrmillionen' },
+    ]
+  }
+];
+
 // Verfügbare ElevenLabs Stimmen für Einschlafgeschichten
 export const AVAILABLE_VOICES = [
   {
@@ -101,27 +248,34 @@ Je nach gewähltem Thema kannst du über folgendes sprechen:
 
 export async function generateStoryText(
   description: string,
-  durationMinutes: number
+  durationMinutes: number,
+  styleId: string = 'scientific'
 ): Promise<string> {
   // Ungefähr 130 Wörter pro Minute beim langsamen Vorlesen
   const targetWordCount = durationMinutes * 130;
+
+  // Finde den gewählten Stil
+  const style = NARRATION_STYLES.find(s => s.id === styleId) || NARRATION_STYLES[0];
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: STORY_STYLE_PROMPT
+        content: `${STORY_STYLE_PROMPT}
+
+## Gewählter Erzählstil: ${style.name}
+${style.promptAddition}`
       },
       {
         role: 'user',
-        content: `Schreibe eine wissenschaftlich fundierte Einschlafgeschichte zum Thema: "${description}"
+        content: `Schreibe eine Einschlafgeschichte zum Thema: "${description}"
 
 Anforderungen:
 - Länge: etwa ${targetWordCount} Wörter (für ca. ${durationMinutes} Minuten)
-- Vermittle echtes, interessantes Wissen – keine oberflächlichen Platitüden
-- Erkläre mindestens 3-4 konkrete wissenschaftliche Konzepte oder Fakten
-- Halte dabei den beruhigenden, meditativen Erzählfluss
+- Erzählstil: ${style.name} - ${style.description}
+- Vermittle interessantes Wissen auf beruhigende Weise
+- Halte den meditativen Erzählfluss
 - Ende sanft, sodass der Zuhörer friedlich einschlafen kann
 
 Beginne direkt mit der Geschichte.`
@@ -199,11 +353,12 @@ export async function generateStory(
   durationMinutes: number,
   storyId: string,
   voiceId: string,
+  styleId: string,
   onStatusUpdate: (status: string, content?: string) => void
 ): Promise<{ content: string; audioPath: string }> {
-  // Generiere Text
+  // Generiere Text mit gewähltem Stil
   onStatusUpdate('generating_text');
-  const content = await generateStoryText(description, durationMinutes);
+  const content = await generateStoryText(description, durationMinutes, styleId);
   onStatusUpdate('generating_audio', content);
 
   // Generiere Audio mit ElevenLabs
@@ -216,6 +371,25 @@ export async function generateStory(
 // Hilfsfunktion um verfügbare Stimmen zu bekommen
 export function getAvailableVoices() {
   return AVAILABLE_VOICES;
+}
+
+// Hilfsfunktion für Erzählstile
+export function getNarrationStyles() {
+  return NARRATION_STYLES.map(({ id, name, description, icon }) => ({ id, name, description, icon }));
+}
+
+// Hilfsfunktion für Kategorien und Ideen
+export function getStoryCategories() {
+  return STORY_CATEGORIES;
+}
+
+// Generiere zufällige Ideen für eine Kategorie
+export function getRandomIdeasForCategory(categoryId: string, count: number = 3) {
+  const category = STORY_CATEGORIES.find(c => c.id === categoryId);
+  if (!category) return [];
+
+  const shuffled = [...category.ideas].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
 }
 
 // ============================================

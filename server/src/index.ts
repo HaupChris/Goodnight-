@@ -5,7 +5,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import { storyDB } from './database';
-import { generateStory, getAvailableVoices, testAllAPIs, testElevenLabsAPI, testElevenLabsVoices, testOpenAIAPI } from './ai-service';
+import { generateStory, getAvailableVoices, getNarrationStyles, getStoryCategories, getRandomIdeasForCategory, testAllAPIs, testElevenLabsAPI, testElevenLabsVoices, testOpenAIAPI } from './ai-service';
 
 dotenv.config();
 
@@ -116,6 +116,43 @@ app.get('/api/voices', (_req, res) => {
   }
 });
 
+// Verfügbare Erzählstile abrufen
+app.get('/api/styles', (_req, res) => {
+  try {
+    const styles = getNarrationStyles();
+    res.json(styles);
+  } catch (error) {
+    console.error('Error fetching styles:', error);
+    res.status(500).json({ error: 'Fehler beim Abrufen der Stile' });
+  }
+});
+
+// Story-Kategorien abrufen
+app.get('/api/categories', (_req, res) => {
+  try {
+    const categories = getStoryCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Fehler beim Abrufen der Kategorien' });
+  }
+});
+
+// Zufällige Ideen für eine Kategorie generieren
+app.get('/api/categories/:id/ideas', (req, res) => {
+  try {
+    const count = parseInt(req.query.count as string) || 3;
+    const ideas = getRandomIdeasForCategory(req.params.id, count);
+    if (ideas.length === 0) {
+      return res.status(404).json({ error: 'Kategorie nicht gefunden' });
+    }
+    res.json(ideas);
+  } catch (error) {
+    console.error('Error fetching ideas:', error);
+    res.status(500).json({ error: 'Fehler beim Generieren der Ideen' });
+  }
+});
+
 // Verfügbare Hintergrundgeräusche
 app.get('/api/ambient-sounds', (_req, res) => {
   const sounds = [
@@ -181,7 +218,7 @@ app.get('/api/stories/:id', (req, res) => {
 // Neue Geschichte erstellen und generieren
 app.post('/api/stories', async (req, res) => {
   try {
-    const { title, description, duration_minutes, voice_id } = req.body;
+    const { title, description, duration_minutes, voice_id, style_id } = req.body;
 
     if (!title || !description || !duration_minutes) {
       return res.status(400).json({ error: 'Titel, Beschreibung und Dauer sind erforderlich' });
@@ -189,6 +226,7 @@ app.post('/api/stories', async (req, res) => {
 
     const id = uuidv4();
     const selectedVoiceId = voice_id || 'EXAVITQu4vr4xnSDxMaL'; // Default: Sarah
+    const selectedStyleId = style_id || 'scientific'; // Default: Wissenschaftlich
 
     // Erstelle den Datenbankeintrag
     const story = storyDB.create({
@@ -208,6 +246,7 @@ app.post('/api/stories', async (req, res) => {
       parseInt(duration_minutes, 10),
       id,
       selectedVoiceId,
+      selectedStyleId,
       (status, content) => {
         if (status === 'generating_text') {
           storyDB.updateStatus(id, 'generating_text');

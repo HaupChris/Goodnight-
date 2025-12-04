@@ -26,4 +26,23 @@ export interface AmbientSound {
   file: string;
 }
 
+export interface NarrationStyle {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface StoryIdea {
+  title: string;
+  description: string;
+}
+
+export interface StoryCategory {
+  id: string;
+  name: string;
+  icon: string;
+  ideas: StoryIdea[];
+}
+
 export type View = 'home' | 'create' | 'library' | 'player';

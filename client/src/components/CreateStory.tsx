@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, Clock, Loader2, Mic, User } from 'lucide-react'
-import { Voice } from '../types'
+import { Sparkles, Clock, Loader2, Mic, User, Palette, Lightbulb, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Voice, NarrationStyle, StoryCategory, StoryIdea } from '../types'
 
 interface CreateStoryProps {
   onStoryCreated: () => void
@@ -13,33 +13,33 @@ const DURATION_OPTIONS = [
   { value: 20, label: '20 Min', description: 'Sehr lang' },
 ]
 
-// Wissenschaftlich fundierte Themenvorschläge
-const THEME_SUGGESTIONS = [
-  'Schwarze Löcher und die Krümmung der Raumzeit',
-  'Wie Sterne geboren werden und sterben',
-  'Die Geheimnisse der Tiefsee',
-  'Quantenverschränkung erklärt',
-  'Die Reise des Lichts durch das Universum',
-  'Wie Planeten entstehen',
-  'Die Physik der Nordlichter',
-  'Das Leben in extremen Umgebungen',
-  'Gravitationswellen und ihre Entdeckung',
-  'Die kosmische Hintergrundstrahlung',
-]
-
 export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(10)
   const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL')
+  const [styleId, setStyleId] = useState('scientific')
   const [voices, setVoices] = useState<Voice[]>([])
+  const [styles, setStyles] = useState<NarrationStyle[]>([])
+  const [categories, setCategories] = useState<StoryCategory[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [suggestedIdeas, setSuggestedIdeas] = useState<StoryIdea[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
-    fetch('/api/voices')
-      .then(res => res.json())
-      .then(data => setVoices(data))
+    // Lade alle benötigten Daten parallel
+    Promise.all([
+      fetch('/api/voices').then(res => res.json()),
+      fetch('/api/styles').then(res => res.json()),
+      fetch('/api/categories').then(res => res.json()),
+    ])
+      .then(([voicesData, stylesData, categoriesData]) => {
+        setVoices(voicesData)
+        setStyles(stylesData)
+        setCategories(categoriesData)
+      })
       .catch(console.error)
   }, [])
 
@@ -63,6 +63,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
           description: description.trim(),
           duration_minutes: duration,
           voice_id: voiceId,
+          style_id: styleId,
         }),
       })
 
@@ -78,11 +79,27 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
     }
   }
 
-  const handleThemeSuggestion = (theme: string) => {
-    setDescription(theme)
-    if (!title) {
-      setTitle(theme)
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId)
+    // Hole zufällige Ideen für diese Kategorie
+    fetch(`/api/categories/${categoryId}/ideas?count=3`)
+      .then(res => res.json())
+      .then(ideas => setSuggestedIdeas(ideas))
+      .catch(console.error)
+  }
+
+  const refreshIdeas = () => {
+    if (selectedCategory) {
+      fetch(`/api/categories/${selectedCategory}/ideas?count=3`)
+        .then(res => res.json())
+        .then(ideas => setSuggestedIdeas(ideas))
+        .catch(console.error)
     }
+  }
+
+  const handleIdeaSelect = (idea: StoryIdea) => {
+    setTitle(idea.title)
+    setDescription(idea.description)
   }
 
   return (
@@ -91,11 +108,77 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
         <Sparkles className="w-10 h-10 text-dream-300 mx-auto" />
         <h1 className="text-2xl font-bold text-white">Neue Geschichte</h1>
         <p className="text-night-400 text-sm">
-          Wähle ein wissenschaftliches Thema für deine Einschlafgeschichte
+          Lass dich inspirieren oder wähle dein eigenes Thema
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Ideen-Generator */}
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-night-300">
+            <Lightbulb className="w-4 h-4" />
+            Lass dich inspirieren
+          </label>
+
+          {/* Kategorie-Auswahl */}
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => handleCategorySelect(category.id)}
+                className={`px-3 py-2 rounded-xl text-sm transition-all flex items-center gap-2 ${
+                  selectedCategory === category.id
+                    ? 'bg-dream-500/30 text-dream-300 ring-1 ring-dream-500'
+                    : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+                }`}
+                disabled={isSubmitting}
+              >
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Vorgeschlagene Ideen */}
+          {selectedCategory && suggestedIdeas.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-night-500">Vorschläge:</span>
+                <button
+                  type="button"
+                  onClick={refreshIdeas}
+                  className="text-xs text-night-500 hover:text-night-300 flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Neue Ideen
+                </button>
+              </div>
+              <div className="grid gap-2">
+                {suggestedIdeas.map((idea, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleIdeaSelect(idea)}
+                    className="p-3 rounded-xl bg-night-800/30 border border-night-700/50 text-left hover:bg-night-700/50 transition-all"
+                    disabled={isSubmitting}
+                  >
+                    <span className="block font-medium text-white text-sm">{idea.title}</span>
+                    <span className="block text-xs text-night-400 mt-1">{idea.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Trennlinie */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-night-700"></div>
+          <span className="text-xs text-night-500">oder eigenes Thema</span>
+          <div className="flex-1 h-px bg-night-700"></div>
+        </div>
+
         {/* Title */}
         <div className="space-y-2">
           <label htmlFor="title" className="block text-sm font-medium text-night-300">
@@ -115,67 +198,41 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
         {/* Description */}
         <div className="space-y-2">
           <label htmlFor="description" className="block text-sm font-medium text-night-300">
-            Thema / Was möchtest du lernen?
+            Thema / Beschreibung
           </label>
           <textarea
             id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Beschreibe das wissenschaftliche Thema, über das du mehr erfahren möchtest..."
+            placeholder="Beschreibe, worüber du mehr erfahren möchtest..."
             rows={3}
             className="w-full px-4 py-3 rounded-xl bg-night-900/50 border border-night-700 text-white placeholder-night-500 focus:outline-none focus:ring-2 focus:ring-night-500 focus:border-transparent transition-all resize-none"
             disabled={isSubmitting}
           />
         </div>
 
-        {/* Theme Suggestions */}
-        <div className="space-y-2">
-          <span className="block text-sm font-medium text-night-400">Themenideen</span>
-          <div className="flex flex-wrap gap-2">
-            {THEME_SUGGESTIONS.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => handleThemeSuggestion(theme)}
-                className="px-3 py-1.5 text-xs rounded-full bg-night-800/50 text-night-300 hover:bg-night-700 hover:text-white transition-all"
-                disabled={isSubmitting}
-              >
-                {theme}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Voice Selection */}
+        {/* Erzählstil */}
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm font-medium text-night-300">
-            <Mic className="w-4 h-4" />
-            Erzählstimme
+            <Palette className="w-4 h-4" />
+            Erzählstil
           </label>
-          <div className="grid grid-cols-1 gap-2">
-            {voices.map((voice) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {styles.map((style) => (
               <button
-                key={voice.id}
+                key={style.id}
                 type="button"
-                onClick={() => setVoiceId(voice.id)}
-                className={`p-3 rounded-xl text-left transition-all flex items-center gap-3 ${
-                  voiceId === voice.id
-                    ? 'bg-night-600 text-white ring-2 ring-night-400'
+                onClick={() => setStyleId(style.id)}
+                className={`p-3 rounded-xl text-center transition-all ${
+                  styleId === style.id
+                    ? 'bg-dream-500/20 text-dream-300 ring-2 ring-dream-500'
                     : 'bg-night-800/50 text-night-400 hover:bg-night-700'
                 }`}
                 disabled={isSubmitting}
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  voice.gender === 'female' ? 'bg-dream-500/20' : 'bg-night-500/20'
-                }`}>
-                  <User className={`w-5 h-5 ${
-                    voice.gender === 'female' ? 'text-dream-400' : 'text-night-300'
-                  }`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="block font-semibold">{voice.name}</span>
-                  <span className="block text-xs opacity-70 truncate">{voice.description}</span>
-                </div>
+                <span className="block text-xl mb-1">{style.icon}</span>
+                <span className="block font-semibold text-sm">{style.name}</span>
+                <span className="block text-xs opacity-70 mt-1">{style.description}</span>
               </button>
             ))}
           </div>
@@ -207,6 +264,53 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
           </div>
         </div>
 
+        {/* Advanced Options Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="w-full flex items-center justify-center gap-2 text-sm text-night-400 hover:text-night-300 transition-colors"
+        >
+          {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {showAdvanced ? 'Weniger Optionen' : 'Mehr Optionen'}
+        </button>
+
+        {/* Voice Selection (Advanced) */}
+        {showAdvanced && (
+          <div className="space-y-3 animate-fadeIn">
+            <label className="flex items-center gap-2 text-sm font-medium text-night-300">
+              <Mic className="w-4 h-4" />
+              Erzählstimme
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {voices.map((voice) => (
+                <button
+                  key={voice.id}
+                  type="button"
+                  onClick={() => setVoiceId(voice.id)}
+                  className={`p-3 rounded-xl text-left transition-all flex items-center gap-3 ${
+                    voiceId === voice.id
+                      ? 'bg-night-600 text-white ring-2 ring-night-400'
+                      : 'bg-night-800/50 text-night-400 hover:bg-night-700'
+                  }`}
+                  disabled={isSubmitting}
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    voice.gender === 'female' ? 'bg-dream-500/20' : 'bg-night-500/20'
+                  }`}>
+                    <User className={`w-5 h-5 ${
+                      voice.gender === 'female' ? 'text-dream-400' : 'text-night-300'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="block font-semibold">{voice.name}</span>
+                    <span className="block text-xs opacity-70 truncate">{voice.description}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div className="p-3 rounded-xl bg-red-900/30 border border-red-800 text-red-300 text-sm">
@@ -236,7 +340,7 @@ export default function CreateStory({ onStoryCreated }: CreateStoryProps) {
 
       {/* Info */}
       <p className="text-center text-xs text-night-500">
-        Die KI erstellt eine wissenschaftlich fundierte Geschichte mit hochwertiger Sprachausgabe.
+        Die KI erstellt eine Geschichte mit hochwertiger Sprachausgabe.
         Das kann 1-2 Minuten dauern.
       </p>
     </div>
