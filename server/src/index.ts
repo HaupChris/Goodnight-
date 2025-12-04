@@ -5,7 +5,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import { storyDB } from './database';
-import { generateStory, getAvailableVoices, testAllAPIs, testElevenLabsAPI, testOpenAIAPI } from './ai-service';
+import { generateStory, getAvailableVoices, testAllAPIs, testElevenLabsAPI, testElevenLabsVoices, testOpenAIAPI } from './ai-service';
 
 dotenv.config();
 
@@ -67,6 +67,20 @@ app.get('/api/health/elevenlabs', async (_req, res) => {
   } catch (error) {
     res.status(500).json({
       service: 'ElevenLabs',
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Test ElevenLabs Stimmen-Verfügbarkeit
+app.get('/api/health/voices', async (_req, res) => {
+  try {
+    const result = await testElevenLabsVoices();
+    res.status(result.status === 'ok' ? 200 : 503).json(result);
+  } catch (error) {
+    res.status(500).json({
+      service: 'ElevenLabs Voices',
       status: 'error',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -277,8 +291,9 @@ app.listen(PORT, async () => {
 
   console.log('');
   console.log('📡 Test-Endpoints:');
-  console.log(`   GET /api/health          - Basis Health Check`);
-  console.log(`   GET /api/health/apis     - Alle APIs testen`);
-  console.log(`   GET /api/health/elevenlabs - ElevenLabs testen`);
-  console.log(`   GET /api/health/openai   - OpenAI testen`);
+  console.log(`   GET /api/health            - Basis Health Check`);
+  console.log(`   GET /api/health/apis       - Alle APIs testen`);
+  console.log(`   GET /api/health/elevenlabs - ElevenLabs API testen`);
+  console.log(`   GET /api/health/voices     - Stimmen-Verfügbarkeit testen`);
+  console.log(`   GET /api/health/openai     - OpenAI testen`);
 });

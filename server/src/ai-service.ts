@@ -363,10 +363,87 @@ export async function testOpenAIAPI(): Promise<APITestResult> {
   }
 }
 
+// Test ob alle konfigurierten Stimmen bei ElevenLabs verfügbar sind
+export async function testElevenLabsVoices(): Promise<APITestResult> {
+  const startTime = Date.now();
+
+  if (!process.env.ELEVENLABS_API_KEY) {
+    return {
+      service: 'ElevenLabs Voices',
+      status: 'error',
+      message: 'ELEVENLABS_API_KEY ist nicht gesetzt',
+      details: { env_var_set: false }
+    };
+  }
+
+  try {
+    // Hole alle verfügbaren Stimmen von ElevenLabs
+    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY
+      }
+    });
+
+    const latency = Date.now() - startTime;
+
+    if (!response.ok) {
+      return {
+        service: 'ElevenLabs Voices',
+        status: 'error',
+        message: `API returned ${response.status}: ${response.statusText}`,
+        latency_ms: latency
+      };
+    }
+
+    const data = await response.json() as {
+      voices: Array<{ voice_id: string; name: string }>;
+    };
+
+    const availableVoiceIds = new Set(data.voices.map(v => v.voice_id));
+
+    // Prüfe welche unserer konfigurierten Stimmen verfügbar sind
+    const voiceStatus = AVAILABLE_VOICES.map(voice => ({
+      id: voice.id,
+      name: voice.name,
+      available: availableVoiceIds.has(voice.id)
+    }));
+
+    const unavailableVoices = voiceStatus.filter(v => !v.available);
+    const allAvailable = unavailableVoices.length === 0;
+
+    return {
+      service: 'ElevenLabs Voices',
+      status: allAvailable ? 'ok' : 'error',
+      message: allAvailable
+        ? `Alle ${AVAILABLE_VOICES.length} Stimmen sind verfügbar`
+        : `${unavailableVoices.length} von ${AVAILABLE_VOICES.length} Stimmen nicht verfügbar`,
+      details: {
+        configured_voices: AVAILABLE_VOICES.length,
+        available_voices: voiceStatus.filter(v => v.available).length,
+        unavailable: unavailableVoices,
+        voice_status: voiceStatus
+      },
+      latency_ms: latency
+    };
+  } catch (error) {
+    const latency = Date.now() - startTime;
+    return {
+      service: 'ElevenLabs Voices',
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      details: {
+        error_type: error?.constructor?.name
+      },
+      latency_ms: latency
+    };
+  }
+}
+
 // Teste alle APIs
 export async function testAllAPIs(): Promise<APITestResult[]> {
   const results = await Promise.all([
     testElevenLabsAPI(),
+    testElevenLabsVoices(),
     testOpenAIAPI()
   ]);
   return results;
