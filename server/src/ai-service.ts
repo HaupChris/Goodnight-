@@ -217,3 +217,150 @@ export async function generateStory(
 export function getAvailableVoices() {
   return AVAILABLE_VOICES;
 }
+
+// ============================================
+// API Test Functions
+// ============================================
+
+export interface APITestResult {
+  service: string;
+  status: 'ok' | 'error';
+  message: string;
+  details?: Record<string, unknown>;
+  latency_ms?: number;
+}
+
+// Test ElevenLabs API Verbindung
+export async function testElevenLabsAPI(): Promise<APITestResult> {
+  const startTime = Date.now();
+
+  // Prüfe ob API Key gesetzt ist
+  if (!process.env.ELEVENLABS_API_KEY) {
+    return {
+      service: 'ElevenLabs',
+      status: 'error',
+      message: 'ELEVENLABS_API_KEY ist nicht gesetzt',
+      details: { env_var_set: false }
+    };
+  }
+
+  try {
+    // Versuche User-Info abzurufen (einfachster API Call)
+    const response = await fetch('https://api.elevenlabs.io/v1/user', {
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY
+      }
+    });
+
+    const latency = Date.now() - startTime;
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorBody);
+      } catch {
+        parsedError = errorBody;
+      }
+
+      return {
+        service: 'ElevenLabs',
+        status: 'error',
+        message: `API returned ${response.status}: ${response.statusText}`,
+        details: {
+          status_code: response.status,
+          status_text: response.statusText,
+          error_body: parsedError,
+          api_key_prefix: process.env.ELEVENLABS_API_KEY.substring(0, 8) + '...'
+        },
+        latency_ms: latency
+      };
+    }
+
+    const userData = await response.json();
+
+    return {
+      service: 'ElevenLabs',
+      status: 'ok',
+      message: 'API-Verbindung erfolgreich',
+      details: {
+        user_id: userData.user_id,
+        subscription_tier: userData.subscription?.tier,
+        character_count: userData.subscription?.character_count,
+        character_limit: userData.subscription?.character_limit,
+        api_key_prefix: process.env.ELEVENLABS_API_KEY.substring(0, 8) + '...'
+      },
+      latency_ms: latency
+    };
+  } catch (error) {
+    const latency = Date.now() - startTime;
+    return {
+      service: 'ElevenLabs',
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      details: {
+        error_type: error?.constructor?.name,
+        api_key_prefix: process.env.ELEVENLABS_API_KEY.substring(0, 8) + '...'
+      },
+      latency_ms: latency
+    };
+  }
+}
+
+// Test OpenAI API Verbindung
+export async function testOpenAIAPI(): Promise<APITestResult> {
+  const startTime = Date.now();
+
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      service: 'OpenAI',
+      status: 'error',
+      message: 'OPENAI_API_KEY ist nicht gesetzt',
+      details: { env_var_set: false }
+    };
+  }
+
+  try {
+    // Einfacher API Test mit minimalen Tokens
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'Say "ok"' }],
+      max_tokens: 5
+    });
+
+    const latency = Date.now() - startTime;
+
+    return {
+      service: 'OpenAI',
+      status: 'ok',
+      message: 'API-Verbindung erfolgreich',
+      details: {
+        model: response.model,
+        response: response.choices[0]?.message?.content,
+        api_key_prefix: process.env.OPENAI_API_KEY.substring(0, 8) + '...'
+      },
+      latency_ms: latency
+    };
+  } catch (error) {
+    const latency = Date.now() - startTime;
+    return {
+      service: 'OpenAI',
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      details: {
+        error_type: error?.constructor?.name,
+        api_key_prefix: process.env.OPENAI_API_KEY?.substring(0, 8) + '...'
+      },
+      latency_ms: latency
+    };
+  }
+}
+
+// Teste alle APIs
+export async function testAllAPIs(): Promise<APITestResult[]> {
+  const results = await Promise.all([
+    testElevenLabsAPI(),
+    testOpenAIAPI()
+  ]);
+  return results;
+}
