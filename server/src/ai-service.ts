@@ -12,6 +12,7 @@ console.log('ELEVENLABS_API_KEY loaded:', process.env.ELEVENLABS_API_KEY ? `${pr
 
 const elevenlabs = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
+  timeoutInSeconds: 300, // 5 Minuten Timeout für lange Geschichten
 });
 
 // Erzählstile
@@ -175,13 +176,6 @@ export const AVAILABLE_VOICES = [
     name: 'Daniel',
     description: 'Ruhige, tiefe Stimme wie ein Hörbuch-Erzähler',
     gender: 'male',
-    preview_url: null
-  },
-  {
-    id: 'XB0fDUnXU5powFXDhCwa', // Charlotte - sanft, klar
-    name: 'Charlotte',
-    description: 'Sanft und klar, ideal für wissenschaftliche Themen',
-    gender: 'female',
     preview_url: null
   },
   {
